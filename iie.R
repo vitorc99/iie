@@ -46,13 +46,13 @@ library(usethis)
 
 ## Obtendo as listas das atas do COPOM via API:
 
-listas_atas_raw <- httr::GET(url = "https://www.bcb.gov.br/api/servico/sitebcb/copom/atas?quantidade=200",
+listas_atas_raw <- httr::GET(url = "https://www.bcb.gov.br/api/servico/sitebcb/copom/atas?quantidade=100",
                       accept_json(),
                       add_headers('Accept: application/json'))
 
 ## Obtendo as listas das atas do COPOM via API:
 
-listas_atas_content <- httr::content(atas_raw,type = "application/json")
+listas_atas_content <- httr::content(listas_atas_raw,type = "application/json")
 
 ## Transformando em data.frame:
 
@@ -70,4 +70,26 @@ url_conteudo <- paste0("https://www.bcb.gov.br/api/servico/sitebcb/copom/atas_de
 
 ## Conteúdo das atas:
 
-listas_conteudo <- RCurl::getURI(url = url_conteudo)
+listas_conteudo <- RCurl::getURI(url = url_conteudo, .opts=curlOptions(followlocation=TRUE),.encoding = "CE_LATIN1")
+
+## Juntando a listagem com o conteúdo das atas:
+
+atas_conteudo_join <- cbind(listas_atas_df,listas_conteudo)
+
+## Função para remover código HTML:
+
+addspace <- tm::content_transformer(function(x, pattern) {
+  return(gsub(pattern, " ", x))
+})
+
+## Criando um Corpus:
+
+corpus_atas <- tm::Corpus(tm::VectorSource(listas_conteudo)) %>%
+  tm::tm_map(addspace,"<.*?>") %>%
+  tm::tm_map(removeWords, stopwords("pt")) %>%
+  tm::tm_map(removePunctuation) %>%
+  tm::tm_map(stripWhitespace)
+
+## Vendo os dados e as alterações sobre:
+
+writeLines(head(strwrap(corpus_atas[[100]]), 15)) 
